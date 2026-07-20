@@ -14,9 +14,9 @@ const isDesktop = BUILD_TARGET === 'desktop';
 const nextConfig = {
   reactStrictMode: true,
 
-  // standalone: فقط للـ EXE (Electron). Vercel يدير Next.js تلقائياً (بلا output).
-  // Capacitor يحتاج export (ملفات ثابتة).
-  ...(isCapacitor ? { output: 'export' } : isDesktop ? { output: 'standalone' } : {}),
+  // الهاتف والحاسوب (Electron و Capacitor) يحتاجان تصديراً ثابتاً (مجلد out).
+  // Vercel يدير Next.js تلقائياً (بلا output).
+  ...(isCapacitor || isDesktop ? { output: 'export' } : {}),
 
   // في التصدير الثابت لا يوجد مُحسِّن صور من الخادم.
   images: { unoptimized: true },

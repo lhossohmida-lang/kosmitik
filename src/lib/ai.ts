@@ -18,7 +18,7 @@ const OPENROUTER_API_KEY =
   process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || '';
 
 const OPENROUTER_MODEL =
-  process.env.NEXT_PUBLIC_OPENROUTER_MODEL || 'cohere/command-r-plus:free';
+  process.env.NEXT_PUBLIC_OPENROUTER_MODEL || 'deepseek/deepseek-chat:free';
 
 export const aiConfigured = Boolean(OPENROUTER_API_KEY);
 
