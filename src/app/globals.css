@@ -185,6 +185,26 @@ body.barcode-scanner-active .scanner-ui {
   .mobile-only {
     display: initial;
   }
+
+  /* نقطة البيع: عمود واحد على الهاتف */
+  .pos-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  /* سلّة المبيعات على الهاتف: ارتفاع محدود مع تمرير داخلي */
+  .cart-col {
+    position: static !important;
+    max-height: 55vh !important;
+    order: -1; /* تظهر السلة فوق البحث على الهاتف */
+  }
+
+  /* أزرار الكميّة: حجم أصغر على الهاتف لتوفير المساحة */
+  .qty-btn {
+    min-height: 32px !important;
+    min-width: 32px !important;
+  }
 }
 
 /* Safari القديمة بلا backdrop-filter → خلفية أوضح للحفاظ على القراءة */

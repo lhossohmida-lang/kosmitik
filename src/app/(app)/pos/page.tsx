@@ -14,7 +14,7 @@ import { addStock } from '@/lib/stock';
 import { printReceipt } from '@/lib/print';
 import { useUsbScanner } from '@/hooks/useUsbScanner';
 import { isCapacitor } from '@/lib/env';
-import { nativeScan } from '@/lib/scanner';
+import { nativeScanContinuous } from '@/lib/scanner';
 import CameraScanner from '@/components/CameraScanner';
 import CustomerPicker from '@/components/pos/CustomerPicker';
 import AddStockDialog from '@/components/pos/AddStockDialog';
@@ -62,6 +62,8 @@ export default function PosPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [stockTarget, setStockTarget] = useState<Product | null>(null);
   const [linkBarcode, setLinkBarcode] = useState<string | null>(null);
+  // ذاكرة مؤقتة للباركودات المربوطة حديثاً (قبل أن تُحدّث Firebase المنتجات).
+  const linkedBarcodesRef = useRef<Map<string, Product>>(new Map());
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [toast, setToast] = useState('');
 
@@ -128,7 +130,9 @@ export default function PosPage() {
 
   const addByBarcode = useCallback(
     (code: string) => {
-      const p = productsRef.current.find((pr) => pr.barcodes.includes(code));
+      // تحقق أولاً من الذاكرة المحلية (قبل أن تُحدّث Firebase) ثم من قائمة المنتجات.
+      const localP = linkedBarcodesRef.current.get(code);
+      const p = localP || productsRef.current.find((pr) => pr.barcodes.includes(code));
       if (p) addToCart(p);
       else setLinkBarcode(code); // باركود غير موجود → بطاقة ربط بمنتج
       setSearch('');
@@ -139,13 +143,20 @@ export default function PosPage() {
   // قارئ USB (يُعطَّل أثناء فتح الكاميرا لتفادي التداخل).
   useUsbScanner({ onScan: addByBarcode, enabled: !scanOpen });
 
-  // فتح الماسح: الهاتف → ML Kit الأصلي (سريع، يغلق بعد المسح)؛ الحاسوب/الويب → ZXing.
+  // مرجع لإلغاء حلقة المسح المتواصل عند إغلاق POS.
+  const scanAbortRef = useRef<AbortController | null>(null);
+
+  // فتح الماسح:
+  //   APK  → ML Kit (حلقة متواصلة: اقرأ باركود، أضف للسلة، افتح ماسح مجدداً، حتى يضغط المستخدم إلغاء).
+  //   PWA/حاسوب → CameraScanner مفتوح بوضع continuous=true (يبقى مفتوحاً حتى يضغط المستخدم إغلاق).
   async function openScanner() {
     if (isCapacitor()) {
       try {
-        const code = await nativeScan();
-        if (code) addByBarcode(code);
-        return; // قُرئ أو أُلغِي — لا نفتح ماسح الويب
+        const ctrl = new AbortController();
+        scanAbortRef.current = ctrl;
+        await nativeScanContinuous(addByBarcode, ctrl.signal);
+        scanAbortRef.current = null;
+        return;
       } catch {
         /* ML Kit غير متاح → بديل الويب */
       }
@@ -736,7 +747,8 @@ export default function PosPage() {
         </div>
       )}
 
-      <CameraScanner open={scanOpen} onScan={addByBarcode} onClose={() => setScanOpen(false)} />
+      {/* continuous=true: يبقى الماسح مفتوحاً لمسح عدة باركودات دفعة واحدة */}
+      <CameraScanner open={scanOpen} onScan={addByBarcode} onClose={() => setScanOpen(false)} continuous />
       <CustomerPicker
         open={pickerOpen}
         customers={customers}
@@ -780,6 +792,8 @@ export default function PosPage() {
           storeId={storeId}
           products={products}
           onDone={(p) => {
+            // احفظ الباركود محلياً فوراً لتفادي ظهور نافذة الربط مجدداً قبل تحديث Firebase.
+            if (linkBarcode) linkedBarcodesRef.current.set(linkBarcode, p);
             addToCart(p);
             showToast(t('pos.toast.barcodeLinked', { name: p.name }));
             setLinkBarcode(null);
