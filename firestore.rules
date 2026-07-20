@@ -1,0 +1,146 @@
+rules_version = '2';
+
+// ===================================================================
+//  قواعد أمان Firestore — KOSMITIK
+//
+//  المجموعات والصلاحيات:
+//  ┌────────────────────┬──────────────────────────────────────────┐
+//  │ المجموعة           │ الصلاحية                                 │
+//  ├────────────────────┼──────────────────────────────────────────┤
+//  │ products           │ قراءة+تعديل: المالك أو العامل            │
+//  │ publicProducts     │ قراءة: الجميع | كتابة: المالك فقط        │
+//  │ storeOrders        │ إنشاء: الجميع (شروط صارمة) | r/u/d: المالك│
+//  │ sales              │ قراءة+إنشاء: المالك أو العامل            │
+//  │ customers          │ قراءة+تعديل: المالك أو العامل            │
+//  │ creditTxns         │ قراءة+إنشاء: المالك أو العامل            │
+//  │ purchases          │ قراءة+كتابة: المالك فقط                  │
+//  │ expenses           │ قراءة+كتابة: المالك فقط                  │
+//  │ workers            │ قراءة+كتابة: المالك فقط                  │
+//  │ workSessions       │ قراءة+كتابة: المالك فقط                  │
+//  │ workerAccounts     │ top-level — تفاصيل أدناه                 │
+//  └────────────────────┴──────────────────────────────────────────┘
+// ===================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── دوال مساعدة ─────────────────────────────────────────────
+    function isOwner(storeId) {
+      return request.auth != null && request.auth.uid == storeId;
+    }
+
+    function sellerAccount() {
+      return get(/databases/$(database)/documents/workerAccounts/$(request.auth.uid)).data;
+    }
+
+    function isSellerOf(storeId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/workerAccounts/$(request.auth.uid))
+        && sellerAccount().storeId == storeId
+        && sellerAccount().active == true;
+    }
+
+    // تحقق صارم من بنية طلب الزبون العام.
+    function validPublicOrder() {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+          'customerName', 'phone', 'address', 'note', 'items',
+          'subtotal', 'total', 'status', 'saleId', 'createdAt', 'updatedAt'
+        ])
+        && d.customerName is string
+        && d.customerName.size() > 0
+        && d.customerName.size() <= 100
+        && d.phone is string
+        && d.phone.size() <= 20
+        && d.items is list
+        && d.items.size() > 0
+        && d.items.size() <= 80
+        && d.subtotal is number
+        && d.total is number
+        && d.total >= 0
+        && d.status == 'new'
+        && d.saleId == null
+        && d.createdAt is number
+        && d.updatedAt is number;
+    }
+
+    // ── ربط حسابات العمال (top-level) ────────────────────────────
+    match /workerAccounts/{uid} {
+      // العامل يقرأ حسابه الخاص؛ المالك يقرأ/يدير حسابات عماله.
+      allow read: if request.auth != null
+        && (request.auth.uid == uid || request.auth.uid == resource.data.storeId);
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.storeId;
+      allow update, delete: if request.auth != null
+        && request.auth.uid == resource.data.storeId;
+    }
+
+    // ── المتجر ────────────────────────────────────────────────────
+    match /stores/{storeId} {
+
+      // مستند المتجر نفسه — لصاحبه فقط.
+      allow read, write: if isOwner(storeId);
+
+      // ── الكتالوج العام ──────────────────────────────────────────
+      match /publicProducts/{productId} {
+        allow read: if true;
+        allow write: if isOwner(storeId);
+      }
+
+      // ── طلبات الزبائن (الرابط الخارجي) ─────────────────────────
+      match /storeOrders/{orderId} {
+        allow create: if validPublicOrder();
+        allow read, update, delete: if isOwner(storeId);
+      }
+
+      // ── ما يحتاجه العامل في نقطة البيع ─────────────────────────
+      match /products/{id} {
+        allow read, update: if isOwner(storeId) || isSellerOf(storeId);
+        // إضافة المنتج وحذفه للمالك فقط.
+        allow create, delete: if isOwner(storeId);
+      }
+
+      match /sales/{id} {
+        allow read, create: if isOwner(storeId) || isSellerOf(storeId);
+        // إلغاء الفاتورة (update) يتطلب صلاحية المالك أو العامل.
+        allow update: if isOwner(storeId) || isSellerOf(storeId);
+        allow delete: if isOwner(storeId);
+      }
+
+      match /customers/{id} {
+        allow read, update: if isOwner(storeId) || isSellerOf(storeId);
+        allow create, delete: if isOwner(storeId);
+      }
+
+      match /creditTxns/{id} {
+        allow read, create: if isOwner(storeId) || isSellerOf(storeId);
+        allow update, delete: if isOwner(storeId);
+      }
+
+      // ── مجموعات المالك فقط ──────────────────────────────────────
+      match /purchases/{id} {
+        allow read, write: if isOwner(storeId);
+      }
+
+      match /expenses/{id} {
+        allow read, write: if isOwner(storeId);
+      }
+
+      match /workers/{id} {
+        allow read, write: if isOwner(storeId);
+      }
+
+      match /workSessions/{id} {
+        allow read, write: if isOwner(storeId);
+      }
+
+      // ── catch-all: بقية المجموعات (إعدادات، نسخ احتياطية…) ─────
+      // تشمل كل مسار لم يُذكر صراحةً أعلاه.
+      match /{document=**} {
+        allow read, write: if isOwner(storeId);
+      }
+    }
+
+    // أي مسار آخر خارج /stores و/workerAccounts مرفوض افتراضياً.
+  }
+}

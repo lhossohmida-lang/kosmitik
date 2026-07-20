@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>deku</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; cursor:none; }
+  body {
+    display:grid; place-items:center;
+    font-family:'Segoe UI', Tahoma, Arial, sans-serif;
+    color:#fff;
+    background:#050b18;
+    background-image:
+      radial-gradient(1000px 600px at 15% -10%, rgba(10,132,255,0.35), transparent 60%),
+      radial-gradient(900px 700px at 100% 10%, rgba(120,90,255,0.25), transparent 55%),
+      radial-gradient(1000px 800px at 50% 120%, rgba(48,209,88,0.18), transparent 55%);
+  }
+  .screen { text-align:center; padding:4vmin; }
+
+  /* وضع الخمول: الاسم فقط */
+  #idle .brand {
+    font-size:16vmin; font-weight:900; letter-spacing:0.5vmin;
+    background:linear-gradient(120deg, #5cb0ff 0%, #2b96ff 45%, #a78bfa 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation: pulse 3.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.72} }
+
+  /* وضع البيع: المجموع الكلي */
+  #active { display:none; }
+  .label { font-size:6vmin; font-weight:700; color:rgba(255,255,255,0.75); margin-bottom:2vmin; }
+  .total {
+    font-size:20vmin; font-weight:900; line-height:1;
+    direction:ltr; unicode-bidi:isolate; white-space:nowrap;
+    text-shadow:0 0 60px rgba(10,132,255,0.55);
+  }
+  .cur { font-size:6vmin; font-weight:800; color:#5cb0ff; margin-top:1.5vmin; }
+</style>
+</head>
+<body>
+  <div class="screen" id="idle"><div class="brand">deku</div></div>
+  <div class="screen" id="active">
+    <div class="label">المجموع الكلي — TOTAL</div>
+    <div class="total" id="total">0.00</div>
+    <div class="cur">د.ج</div>
+  </div>
+
+<script>
+  const idleEl = document.getElementById('idle');
+  const activeEl = document.getElementById('active');
+  const totalEl = document.getElementById('total');
+
+  function render(p) {
+    const idle = !p || p.idle || p.total == null;
+    idleEl.style.display = idle ? 'block' : 'none';
+    activeEl.style.display = idle ? 'none' : 'block';
+    if (!idle) totalEl.textContent = String(p.total);
+  }
+
+  if (window.customerAPI && window.customerAPI.onUpdate) {
+    window.customerAPI.onUpdate(render);
+  }
+  render(null); // البداية: خمول (deku)
+</script>
+</body>
+</html>

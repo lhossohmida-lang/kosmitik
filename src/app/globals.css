@@ -1,0 +1,261 @@
+/* ==============================================================
+   stor — أنماط عامة (عربية RTL أولاً)
+   إعادة تصميم زجاجية بطابع iOS (Liquid Glass) — أزرق محايد.
+   الألوان معرّفة كمتغيّرات CSS لسهولة التغيير من مكان واحد.
+   ============================================================== */
+
+:root {
+  /* لون iOS الأزرق المحايد */
+  --primary: #0a84ff;
+  --primary-dark: #0060df;
+  --accent: #ff9f0a;
+  --danger: #ff3b30;
+  --success: #30d158;
+
+  /* نصوص باردة */
+  --text: #0b1b33;
+  --text-muted: #5b6b85;
+
+  /* خلفية باردة متدرّجة (تُعطي الزجاج شيئاً يُشوّشه) */
+  --bg: #eef2f8;
+
+  /* ===== طبقات الزجاج ===== */
+  --surface: rgba(255, 255, 255, 0.62);          /* البطاقات */
+  --surface-strong: rgba(255, 255, 255, 0.78);   /* عناصر تحتاج وضوحاً أعلى */
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --border: rgba(120, 140, 170, 0.22);
+  --glass-blur: saturate(180%) blur(20px);
+  --shadow: 0 8px 30px rgba(15, 40, 90, 0.10), 0 2px 8px rgba(15, 40, 90, 0.05);
+  --shadow-lg: 0 20px 60px rgba(15, 40, 90, 0.18);
+
+  --sidebar-w: 244px;
+  --topbar-h: 58px;
+  --bottomnav-h: 64px;
+  --radius: 16px;
+  --radius-sm: 12px;
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: 'SF Pro Display', -apple-system, 'Segoe UI', Tahoma, 'Noto Sans Arabic', 'Cairo', system-ui, sans-serif;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+  /* خلفية زجاجية: تدرّجات ملوّنة ناعمة خلف الألواح المصنفرة */
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(1200px 600px at 12% -8%, rgba(10, 132, 255, 0.16), transparent 60%),
+    radial-gradient(900px 700px at 100% 0%, rgba(120, 90, 255, 0.13), transparent 55%),
+    radial-gradient(1000px 800px at 50% 120%, rgba(48, 209, 88, 0.10), transparent 55%);
+  background-attachment: fixed;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.no-select {
+  user-select: none;
+}
+
+/* ---------- لوح زجاجي عامّ ---------- */
+.glass-panel {
+  background: var(--surface);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+}
+
+/* ---------- أزرار ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, #2b96ff 0%, var(--primary) 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  box-shadow: 0 6px 18px rgba(10, 132, 255, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: filter 0.15s ease, transform 0.06s ease, box-shadow 0.15s ease;
+}
+.btn:hover {
+  filter: brightness(1.05);
+}
+.btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+/* الأزرار الثانوية: زرقاء أفتح قليلاً من الأساسية (تمييز خفيف) — بطلب المستخدم. */
+.btn-outline {
+  background: linear-gradient(180deg, #5cb0ff 0%, #2b96ff 100%);
+  color: #fff;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 5px 14px rgba(10, 132, 255, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+.btn-outline:hover {
+  filter: brightness(1.06);
+}
+
+/* ---------- بطاقة زجاجية ---------- */
+.card {
+  background: var(--surface);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+/* ---------- حقول الإدخال ---------- */
+.input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.15);
+}
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+/* ---------- طبقة الكاميرا (الباركود) ---------- */
+body.barcode-scanner-active {
+  visibility: hidden;
+  background: transparent;
+}
+body.barcode-scanner-active .scanner-ui {
+  visibility: visible;
+}
+
+/* ---------- أدوات إظهار/إخفاء حسب المنصّة ---------- */
+.desktop-only {
+  display: initial;
+}
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+  .mobile-only {
+    display: initial;
+  }
+}
+
+/* Safari القديمة بلا backdrop-filter → خلفية أوضح للحفاظ على القراءة */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --surface: rgba(255, 255, 255, 0.92);
+    --surface-strong: rgba(255, 255, 255, 0.97);
+  }
+}
+
+/* ============================================================
+   iOS PWA — Safe Area + Standalone Mode Fixes
+   يعمل عند تثبيت التطبيق من Safari على iPhone/iPad
+   ============================================================ */
+
+/* متغيّرات safe area للـ notch والـ Dynamic Island والـ home indicator */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* في وضع standalone (PWA مثبّت) — اضبط padding العلوي للـ status bar */
+@media (display-mode: standalone) {
+  body {
+    /* منع اللمس المزدوج الذي يُكبّر الصفحة على iOS */
+    touch-action: manipulation;
+  }
+
+  /* الـ TopBar: ارفعه فوق الـ notch */
+  header,
+  [data-topbar] {
+    padding-top: max(var(--safe-top), 12px);
+  }
+
+  /* الـ BottomNav: انزله تحت الـ home indicator */
+  nav[data-bottomnav],
+  [data-bottomnav] {
+    padding-bottom: max(var(--safe-bottom), 8px);
+    height: calc(var(--bottomnav-h) + max(var(--safe-bottom), 8px));
+  }
+
+  /* المحتوى الرئيسي: لا يختفي خلف الأشرطة */
+  main {
+    padding-top: max(var(--safe-top), 0px);
+  }
+}
+
+/* تحسينات اللمس على iOS عموماً */
+* {
+  -webkit-tap-highlight-color: transparent; /* إزالة الوميض الأزرق عند اللمس */
+}
+
+button,
+a,
+[role="button"] {
+  /* حجم لمس مريح على الشاشة الصغيرة */
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* منع تمييز النص عند السحب على الشاشة التلمسية */
+.no-select,
+button,
+nav {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* تمرير سلس على iOS */
+[style*="overflow"] {
+  -webkit-overflow-scrolling: touch;
+}

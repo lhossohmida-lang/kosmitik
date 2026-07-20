@@ -1,0 +1,76 @@
+{
+  "name": "kosmitik-pos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "KOSMITIK — نقطة بيع وإدارة مخزون (Windows EXE + Android APK) بكود Next.js واحد",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "electron": "electron .",
+    "build:static": "cross-env BUILD_TARGET=capacitor next build",
+    "build:desktop": "cross-env BUILD_TARGET=capacitor next build && electron-builder",
+    "build:win7": "cross-env BUILD_TARGET=capacitor next build && electron-builder --ia32 --x64",
+    "cap:build": "cross-env BUILD_TARGET=capacitor next build",
+    "android:init": "cross-env BUILD_TARGET=capacitor next build && npx cap add android",
+    "android:apk": "cross-env BUILD_TARGET=capacitor next build && npx cap sync android && cd android && gradlew.bat assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor-mlkit/barcode-scanning": "^6.2.0",
+    "@zxing/browser": "^0.2.0",
+    "firebase": "^10.14.1",
+    "next": "^14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^6.2.1",
+    "@capacitor/core": "^6.2.1",
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "cross-env": "^7.0.3",
+    "electron": "^22.3.27",
+    "electron-builder": "^25.1.8",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.35",
+    "typescript": "^5.5.4"
+  },
+  "build": {
+    "appId": "app.kosmitik.desktop",
+    "productName": "shop",
+    "artifactName": "shop-Setup-${arch}.${ext}",
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "out",
+        "to": "app"
+      }
+    ],
+    "directories": {
+      "output": "dist-electron"
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["ia32", "x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
