@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@capacitor-mlkit/barcode-scanning": "^6.2.0",
-    "@zxing/browser": "^0.2.0",
+    "barcode-detector": "^3.2.1",
     "firebase": "^10.14.1",
     "next": "^14.2.35",
     "react": "^18.3.1",
@@ -64,7 +64,10 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["ia32", "x64"]
+          "arch": [
+            "ia32",
+            "x64"
+          ]
         }
       ]
     },

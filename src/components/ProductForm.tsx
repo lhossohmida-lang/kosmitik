@@ -464,7 +464,13 @@ export default function ProductForm({
       {/* ماسح الكاميرا (ويب) — يغلق بعد أول مسح */}
       <CameraScanner
         open={scanOpen}
-        onScan={(code) => addBarcodeValue(code)}
+        onScan={(code) => {
+          addBarcodeValue(code);
+          import('@/lib/sound').then(({ beep, vibrate }) => {
+            beep(1);
+            vibrate();
+          });
+        }}
         onClose={() => setScanOpen(false)}
       />
 

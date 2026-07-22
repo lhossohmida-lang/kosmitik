@@ -13,35 +13,6 @@ import { useLanguage } from '@/context/LanguageContext';
 
 const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf', 'qr_code'];
 
-function beep() {
-  try {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.value = 880;
-    gain.gain.value = 0.08;
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    setTimeout(() => {
-      osc.stop();
-      ctx.close();
-    }, 80);
-  } catch {
-    /* الصوت غير حرج */
-  }
-}
-
-function vibrate() {
-  try {
-    navigator.vibrate?.(50);
-  } catch {
-    /* الاهتزاز غير حرج */
-  }
-}
-
 function stopStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((t) => t.stop());
 }
@@ -93,8 +64,7 @@ export default function CameraScanner({
       if (text === lastCodeRef.current && now - lastTimeRef.current < 1200) return;
       lastCodeRef.current = text;
       lastTimeRef.current = now;
-      beep();
-      vibrate();
+      
       if (continuous) {
         setLastScanned(text);
         setCount((c) => c + 1);
@@ -108,11 +78,13 @@ export default function CameraScanner({
 
     (async () => {
       try {
-        const BD = (window as unknown as { BarcodeDetector?: new (o: { formats: string[] }) => { detect: (s: unknown) => Promise<{ rawValue: string }[]> } }).BarcodeDetector;
+        let BD = (window as unknown as { BarcodeDetector?: new (o: { formats: string[] }) => { detect: (s: unknown) => Promise<{ rawValue: string }[]> } }).BarcodeDetector;
+        if (!BD) {
+          const m = await import('barcode-detector/pure');
+          BD = m.BarcodeDetector as any;
+        }
 
-        // BarcodeDetector أصلي وسريع → دقّة عالية. غير متوفّر (مثل ويندوز) → ZXing:
-        // نُصغّر الدقّة لأنّ فك التشفير على إطار أصغر أسرع بكثير (استجابة شبه فورية).
-        const res = BD ? { width: { ideal: 1280 }, height: { ideal: 720 } } : { width: { ideal: 1024 }, height: { ideal: 768 } };
+        const res = { width: { ideal: 1280 }, height: { ideal: 720 } };
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: 'environment' }, ...res },
         });
@@ -125,45 +97,28 @@ export default function CameraScanner({
         await video.play().catch(() => {});
         void applyContinuousFocus(stream);
 
-        if (BD) {
-          // المسار السريع: فحص أصلي لكل إطار.
-          const detector = new BD({ formats: FORMATS });
-          const tick = async () => {
-            if (cancelled) return;
-            try {
-              const codes = await detector.detect(video);
-              if (codes && codes.length) handle(codes[0].rawValue);
-            } catch {
-              /* تجاهل إطاراً فاشلاً */
-            }
-            if (!cancelled) rafId = requestAnimationFrame(tick);
-          };
-          stopRef.current = () => {
-            cancelled = true;
-            cancelAnimationFrame(rafId);
-            stopStream(stream);
-          };
-          rafId = requestAnimationFrame(tick);
-        } else {
-          // بديل ZXing بمحاولات متواصلة.
-          const { BrowserMultiFormatReader } = await import('@zxing/browser');
-          const { DecodeHintType, BarcodeFormat } = await import('@zxing/library');
-          const hints = new Map();
-          hints.set(DecodeHintType.TRY_HARDER, true);
-          hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-            BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
-            BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.QR_CODE, BarcodeFormat.ITF,
-          ]);
-          const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 0, delayBetweenScanSuccess: 300 });
-          const controls = await reader.decodeFromStream(stream, video, (result: unknown) => {
-            if (result) handle((result as { getText: () => string }).getText());
-          });
-          stopRef.current = () => {
-            cancelled = true;
-            controls.stop();
-            stopStream(stream);
-          };
+        if (!BD) {
+          throw new Error('BarcodeDetector could not be loaded');
         }
+
+        const detector = new BD({ formats: FORMATS });
+        const tick = async () => {
+          if (cancelled) return;
+          try {
+            const codes = await detector.detect(video);
+            if (codes && codes.length) handle(codes[0].rawValue);
+          } catch {
+            /* تجاهل إطاراً فاشلاً */
+          }
+          if (!cancelled) rafId = requestAnimationFrame(tick);
+        };
+        stopRef.current = () => {
+          cancelled = true;
+          cancelAnimationFrame(rafId);
+          stopStream(stream);
+        };
+        rafId = requestAnimationFrame(tick);
+
       } catch {
         if (!cancelled) setError(t('cameraScanner.error'));
       }

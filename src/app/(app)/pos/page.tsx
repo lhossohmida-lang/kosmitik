@@ -15,6 +15,7 @@ import { printReceipt } from '@/lib/print';
 import { useUsbScanner } from '@/hooks/useUsbScanner';
 import { isCapacitor } from '@/lib/env';
 import { nativeScanContinuous } from '@/lib/scanner';
+import { beep, vibrate } from '@/lib/sound';
 import CameraScanner from '@/components/CameraScanner';
 import CustomerPicker from '@/components/pos/CustomerPicker';
 import AddStockDialog from '@/components/pos/AddStockDialog';
@@ -133,8 +134,16 @@ export default function PosPage() {
       // تحقق أولاً من الذاكرة المحلية (قبل أن تُحدّث Firebase) ثم من قائمة المنتجات.
       const localP = linkedBarcodesRef.current.get(code);
       const p = localP || productsRef.current.find((pr) => pr.barcodes.includes(code));
-      if (p) addToCart(p);
-      else setLinkBarcode(code); // باركود غير موجود → بطاقة ربط بمنتج
+      if (p) {
+        addToCart(p);
+        beep(1);
+        vibrate();
+      } else {
+        beep(2);
+        vibrate();
+        setScanOpen(false); // إغلاق الكاميرا لتجنب تداخل الشاشات
+        setLinkBarcode(code); // باركود غير موجود → بطاقة ربط بمنتج
+      }
       setSearch('');
     },
     [addToCart],
@@ -244,6 +253,9 @@ export default function PosPage() {
   const subtotal = useMemo(() => round2(cart.reduce((s, l) => s + l.qty * l.unitPrice, 0)), [cart]);
   const effectiveDiscount = Math.min(discount, subtotal);
   const total = round2(subtotal - effectiveDiscount);
+  
+  const totalCost = useMemo(() => round2(cart.reduce((s, l) => s + l.qty * (l.product.unitPurchasePrice || 0), 0)), [cart]);
+  const totalProfit = round2(total - totalCost);
 
   // خانة الإجمالي تعكس السعر الحالي دائماً، إلا أثناء تعديلها عبر F12 (تُصبح فارغة للكتابة).
   useEffect(() => {
@@ -579,31 +591,38 @@ export default function PosPage() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 22, fontWeight: 800 }}>
             <span>{t('pos.total')}</span>
-            <input
-              ref={totalRef}
-              type="number"
-              value={totalInput}
-              onChange={(e) => {
-                setTotalInput(e.target.value);
-                if (e.target.value.trim() === '') return; // فارغ → يبقى السعر الأصلي عند التأكيد
-                const val = Number(e.target.value);
-                if (Number.isFinite(val)) setDiscount(Math.max(0, round2(subtotal - val)));
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+              <input
+                ref={totalRef}
+                type="number"
+                value={totalInput}
+                onChange={(e) => {
+                  setTotalInput(e.target.value);
+                  if (e.target.value.trim() === '') return; // فارغ → يبقى السعر الأصلي عند التأكيد
+                  const val = Number(e.target.value);
+                  if (Number.isFinite(val)) setDiscount(Math.max(0, round2(subtotal - val)));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    totalEditingRef.current = false;
+                    confirmSale(false);
+                    setTotalInput(String(total));
+                  }
+                }}
+                onBlur={() => {
                   totalEditingRef.current = false;
-                  confirmSale(false);
                   setTotalInput(String(total));
-                }
-              }}
-              onBlur={() => {
-                totalEditingRef.current = false;
-                setTotalInput(String(total));
-              }}
-              title={t('pos.editTotal')}
-              style={{ width: 130, textAlign: 'left', fontSize: 22, fontWeight: 800, color: 'var(--primary)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '2px 8px', background: '#fff' }}
-            />
+                }}
+                title={t('pos.editTotal')}
+                style={{ width: 130, textAlign: 'left', fontSize: 22, fontWeight: 800, color: 'var(--primary)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '2px 8px', background: '#fff' }}
+              />
+              {(permissions.includes('*') || permissions.includes('/products')) && totalProfit !== 0 && (
+                <span style={{ fontSize: 13, color: totalProfit > 0 ? 'var(--success)' : 'var(--danger)', marginTop: 4 }}>
+                  الفائدة الكلية: {formatMoney(totalProfit)}
+                </span>
+              )}
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>

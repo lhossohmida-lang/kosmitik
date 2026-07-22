@@ -70,6 +70,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           style={{
             flex: 1,
             padding: 16,
+            paddingTop: mobile ? 'calc(max(env(safe-area-inset-top, 0px), 12px) + 16px)' : 16,
             paddingBottom: mobile ? 'calc(var(--bottomnav-h) + 16px)' : 16,
           }}
         >
